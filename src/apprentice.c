@@ -3274,7 +3274,7 @@ apprentice_map_resource(struct magic_set *ms)
 		file_error(ms, 2, "cannot load resource: %d", GetLastError());
 
 	map->len  = CAST(size_t, SizeofResource(NULL, res));
-	map->type = MAP_TYPE_MALLOC;
+	map->type = MAP_TYPE_USER;
 	map->p    = (void *)LockResource(res_handle);
 
 	if (check_buffer(ms, map, dbname) != 0) {
