@@ -363,17 +363,17 @@ file_buffer(struct magic_set *ms, int fd, struct stat *st,
 		}
 	}
 #endif
-#if HAVE_FORK
+//#if HAVE_FORK
 	/* try compression stuff */
 	if ((ms->flags & MAGIC_NO_CHECK_COMPRESS) == 0) {
 		m = file_zmagic(ms, &b, inname);
 		if ((ms->flags & MAGIC_DEBUG) != 0)
 			(void)fprintf(stderr, "[try zmagic %d]\n", m);
-		if (m) {
+		if (m && m != -1) {
 			goto done_encoding;
 		}
 	}
-#endif
+//#endif
 	/* Check if we have a tar file */
 	if ((ms->flags & MAGIC_NO_CHECK_TAR) == 0) {
 		m = file_is_tar(ms, &b);
@@ -499,9 +499,9 @@ simple:
 		if (file_printf(ms, "%s", code_mime) == -1)
 			rv = -1;
 	}
-#if HAVE_FORK
+//#if HAVE_FORK
  done_encoding:
-#endif
+//#endif
 	free(rbuf);
 	buffer_fini(&b);
 	if (rv)
@@ -904,7 +904,8 @@ file_print_guid(char *str, size_t len, const uint64_t *guid)
 #endif
 }
 
-file_protected int
+#ifdef HAVE_FORK
+protected int
 file_pipe_closexec(int *fds)
 {
 #ifdef __MINGW32__
@@ -921,6 +922,7 @@ file_pipe_closexec(int *fds)
 	return 0;
 #endif
 }
+#endif
 
 file_protected int
 file_clear_closexec(int fd) {
