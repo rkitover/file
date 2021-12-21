@@ -205,7 +205,7 @@ private const struct {
 #define ERRDATA	2
 
 private ssize_t swrite(int, const void *, size_t);
-#if HAVE_FORK
+//#if HAVE_FORK
 private size_t ncompr = __arraycount(compr);
 private int uncompressbuf(int, size_t, size_t, const unsigned char *,
     unsigned char **, size_t *);
@@ -258,7 +258,7 @@ file_zmagic(struct magic_set *ms, const struct buffer *b, const char *name)
 	const unsigned char *buf = CAST(const unsigned char *, b->fbuf);
 	size_t nbytes = b->flen;
 	int sa_saved = 0;
-	struct sigaction sig_act;
+//	struct sigaction sig_act;
 
 	if ((ms->flags & MAGIC_COMPRESS) == 0)
 		return 0;
@@ -278,6 +278,7 @@ file_zmagic(struct magic_set *ms, const struct buffer *b, const char *name)
 			continue;
 
 		/* Prevent SIGPIPE death if child dies unexpectedly */
+/*
 		if (!sa_saved) {
 			//We can use sig_act for both new and old, but
 			struct sigaction new_act;
@@ -285,6 +286,7 @@ file_zmagic(struct magic_set *ms, const struct buffer *b, const char *name)
 			new_act.sa_handler = SIG_IGN;
 			sa_saved = sigaction(SIGPIPE, &new_act, &sig_act) != -1;
 		}
+*/
 
 		nsz = nbytes;
 		urv = uncompressbuf(fd, ms->bytes_max, i, buf, &newbuf, &nsz);
@@ -332,7 +334,7 @@ file_zmagic(struct magic_set *ms, const struct buffer *b, const char *name)
 		case NODATA:
 			break;
 		default:
-			abort();
+//			abort();
 			/*NOTREACHED*/
 		error:
 			rv = -1;
@@ -342,15 +344,17 @@ file_zmagic(struct magic_set *ms, const struct buffer *b, const char *name)
 out:
 	DPRINTF("rv = %d\n", rv);
 
+/*
 	if (sa_saved && sig_act.sa_handler != SIG_IGN)
 		(void)sigaction(SIGPIPE, &sig_act, NULL);
+*/
 
 	free(newbuf);
 	ms->flags |= MAGIC_COMPRESS;
 	DPRINTF("Zmagic returns %d\n", rv);
 	return rv;
 }
-#endif
+//#endif
 /*
  * `safe' write for sockets and pipes.
  */
@@ -527,7 +531,7 @@ file_pipe2file(struct magic_set *ms, int fd, const void *startbuf,
 	}
 	return fd;
 }
-#if HAVE_FORK
+//#if HAVE_FORK
 #ifdef BUILTIN_DECOMPRESS
 
 #define FHCRC		(1 << 1)
@@ -718,6 +722,7 @@ makeerror(unsigned char **buf, size_t *len, const char *fmt, ...)
 	return ERRDATA;
 }
 
+#ifdef HAVE_FORK
 static void
 closefd(int *fd, size_t i)
 {
@@ -845,6 +850,7 @@ filter_error(unsigned char *ubuf, ssize_t n)
 		*ubuf = toupper(*ubuf);
 	return n;
 }
+#endif
 
 private const char *
 methodname(size_t method)
@@ -875,8 +881,10 @@ uncompressbuf(int fd, size_t bytes_max, size_t method, const unsigned char *old,
 {
 	int fdp[3][2];
 	int status, rv, w;
+#ifdef HAVE_FORK
 	pid_t pid;
 	pid_t writepid = -1;
+#endif
 	size_t i;
 	ssize_t r;
 	char *const *args;
@@ -904,6 +912,7 @@ uncompressbuf(int fd, size_t bytes_max, size_t method, const unsigned char *old,
 		break;
 	}
 
+#ifdef HAVE_FORK
 	(void)fflush(stdout);
 	(void)fflush(stderr);
 
@@ -1046,5 +1055,8 @@ wait_err:
 	DPRINTF("Returning %p n=%" SIZE_T_FORMAT "u rv=%d\n", *newch, *n, rv);
 
 	return rv;
-}
+#else
+	return -1;
 #endif
+}
+//#endif
