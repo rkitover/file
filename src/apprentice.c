@@ -3285,14 +3285,9 @@ apprentice_map_resource(struct magic_set *ms)
 	if (!res_handle)
 		file_error(ms, 2, "cannot load resource: %d", GetLastError());
 
-	map->len = CAST(size_t, SizeofResource(NULL, res));
+	map->len  = CAST(size_t, SizeofResource(NULL, res));
 	map->type = MAP_TYPE_MALLOC;
-	if ((map->p = CAST(void *, malloc(map->len))) == NULL) {
-		file_oomem(ms, map->len);
-		goto error;
-	}
-
-	memcpy(map->p, (void *)LockResource(res_handle), map->len);
+	map->p    = (void *)LockResource(res_handle);
 
 	if (check_buffer(ms, map, dbname) != 0) {
 		goto error;
