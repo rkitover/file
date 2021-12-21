@@ -240,6 +240,12 @@ out:
 	/* Fifth, try to get magic file relative to dll location */
         _w32_get_magic_relative_to(&hmagicpath, _w32_dll_instance);
 
+#ifdef MAGIC_RESOURCE
+	/* Last, fallback to builtin resource */
+	if (!hmagicpath)
+	    hmagicpath = "%%WIN32_RESOURCE%%";
+#endif
+
 	/* Avoid MAGIC constant - it likely points to a file within MSys tree */
 	default_magic = hmagicpath;
 	return default_magic;
