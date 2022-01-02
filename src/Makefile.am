@@ -12,12 +12,12 @@ libmagic_la_SOURCES = buffer.c magic.c apprentice.c softmagic.c ascmagic.c \
 	fsmagic.c funcs.c file.h readelf.h tar.h apptype.c der.c der.h \
 	file_opts.h elfclass.h mygetopt.h cdf.c cdf_time.c readcdf.c cdf.h
 libmagic_la_LDFLAGS = -no-undefined -version-info 1:0:0
-if MINGW
-MINGWLIBS = -lgnurx -lshlwapi
+if WIN32
+WIN32LIBS = -lshlwapi
 else
-MINGWLIBS =
+WIN32LIBS =
 endif
-libmagic_la_LIBADD = $(LTLIBOBJS) $(MINGWLIBS)
+libmagic_la_LIBADD = $(LTLIBOBJS) $(WIN32LIBS)
 
 file_SOURCES = file.c seccomp.c
 file_LDADD = libmagic.la

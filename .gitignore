@@ -42,3 +42,6 @@ Makefile.in
 /src/magic.h
 
 /tests/test
+
+# Visual Studio stuff
+*.pdb

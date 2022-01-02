@@ -79,7 +79,15 @@
 #include <stdio.h>	/* Include that here, to make sure __P gets defined */
 #include <errno.h>
 #include <fcntl.h>	/* For open and flags */
+
+#ifdef HAVE_PCRE2POSIX_H
+#include <pcre2posix.h>
+#elif defined(HAVE_PCREPOSIX_H)
+#include <pcreposix.h>
+#else
 #include <regex.h>
+#endif
+
 #include <time.h>
 #include <sys/types.h>
 #ifndef WIN32

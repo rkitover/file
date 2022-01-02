@@ -15,7 +15,7 @@ AC_ARG_ENABLE(elf,
 else
   AC_MSG_RESULT(no)
 fi], [
-  # enable by default
+  dnl enable by default
   AC_MSG_RESULT(yes)
   AC_DEFINE([BUILTIN_ELF], 1, [Define in built-in ELF support is used])
 ])
@@ -29,7 +29,7 @@ AC_ARG_ENABLE(elf-core,
 else
   AC_MSG_RESULT(no)
 fi], [
-  # enable by default
+  dnl enable by default
   AC_MSG_RESULT(yes)
   AC_DEFINE([ELFCORE], 1, [Define for ELF core file support])
 ])
@@ -54,6 +54,21 @@ AC_ARG_ENABLE([libseccomp],
 [AS_HELP_STRING([--disable-libseccomp], [disable libseccomp sandboxing @<:@default=auto@:>@])])
 AC_MSG_RESULT($enable_libseccomp)
 
+AC_MSG_CHECKING(for pcre2 support)
+AC_ARG_ENABLE([pcre2],
+[AS_HELP_STRING([--disable-pcre2], [disable pcre2 regex @<:@default=auto@:>@])])
+AC_MSG_RESULT($enable_pcre2)
+
+AC_MSG_CHECKING(for pcre support)
+AC_ARG_ENABLE([pcre],
+[AS_HELP_STRING([--disable-pcre], [disable pcre regex @<:@default=auto@:>@])])
+AC_MSG_RESULT($enable_pcre)
+
+dnl pcre2 and pcre are mutually exclusive.
+if test "$enable_pcre2$enable_pcre" = "yesyes"; then
+  AC_MSG_ERROR([you can require pcre2 or pcre but NOT both])
+fi
+
 AC_MSG_CHECKING(for file formats in man section 5)
 AC_ARG_ENABLE(fsect-man5,
 [  --enable-fsect-man5      enable file formats in man section 5],
@@ -64,22 +79,10 @@ else
   AC_MSG_RESULT(no)
   fsect=4
 fi], [
-  # disable by default
+  dnl disable by default
   AC_MSG_RESULT(no)
   fsect=4
 ])
-
-AC_CANONICAL_HOST
-case "$host_os" in
-   mingw32*)
-      MINGW=1
-      ;;
-   *)
-      MINGW=0
-      ;;
-esac
-AC_SUBST(MINGW)
-AM_CONDITIONAL(MINGW, test "$MINGW" = 1)
 
 AC_SUBST([pkgdatadir], ['$(datadir)/misc'])
 AC_SUBST(fsect)
@@ -94,8 +97,44 @@ AM_PROG_CC_C_O
 AC_C_BIGENDIAN
 AC_PROG_INSTALL
 AC_PROG_LN_S
-LT_INIT([disable-static pic-only])
+LT_INIT([disable-static pic-only win32-dll])
 gl_VISIBILITY
+
+dnl Check for MSVC and MINGW
+
+AC_CANONICAL_HOST
+
+case "$CCDEPMODE" in
+  *msvc*)
+    MSVC=1
+    ;;
+  *)
+    MSVC=0
+    ;;
+esac
+
+if test "$MSVC" != "1"; then
+  case "$host_os" in
+     mingw*)
+        MINGW=1
+        ;;
+     *)
+        MINGW=0
+        ;;
+  esac
+else
+  MINGW=0
+fi
+
+WIN32=0
+
+if test "$MSVC" = 1 || test "$MINGW" = 1; then
+  WIN32=1
+  AC_DEFINE([WIN32], 1, [Define for native Win32 build])
+  AC_SUBST(WIN32)
+  AM_CONDITIONAL(WIN32, test "$WIN32" = 1)
+fi
+
 dnl Checks for headers
 AC_HEADER_MAJOR
 AC_HEADER_SYS_WAIT
@@ -103,6 +142,19 @@ AC_CHECK_HEADERS(stdint.h fcntl.h inttypes.h unistd.h byteswap.h)
 AC_CHECK_HEADERS(spawn.h utime.h wchar.h wctype.h)
 AC_CHECK_HEADERS(getopt.h err.h xlocale.h)
 AC_CHECK_HEADERS(sys/bswap.h sys/mman.h sys/stat.h sys/types.h sys/utime.h sys/time.h sys/sysmacros.h sys/ioctl.h)
+if test "$enable_pcre2" != "no"; then
+  AC_CHECK_HEADERS(pcre2posix.h)
+fi
+if test "$ac_cv_header_pcre2posix_h" != "yes" && \
+   test "$enable_pcre" != "no"; then
+  AC_CHECK_HEADERS(pcreposix.h)
+fi
+if test "$ac_cv_header_pcre2posix_h" != "yes" && \
+   test "$ac_cv_header_pcreposix_h" != "yes"; then
+  AC_CHECK_HEADERS(regex.h,,[
+    AC_MSG_ERROR([no include header for regex support found])
+  ])
+fi
 if test "$enable_zlib" != "no"; then
   AC_CHECK_HEADERS(zlib.h)
 fi
@@ -172,7 +224,7 @@ AC_REPLACE_FUNCS(getopt_long asprintf vasprintf strlcpy strlcat getline ctime_r 
 
 dnl Checks for libraries
 if test "$enable_zlib" != "no"; then
-  AC_CHECK_LIB(z, gzopen)
+  AC_SEARCH_LIBS(gzopen, [z zlib])
 fi
 if test "$enable_bzlib" != "no"; then
   AC_CHECK_LIB(bz2, BZ2_bzCompressInit)
@@ -183,14 +235,49 @@ fi
 if test "$enable_libseccomp" != "no"; then
     AC_CHECK_LIB(seccomp, seccomp_init)
 fi
-if test "$MINGW" = 1; then
-  AC_CHECK_LIB(gnurx,regexec,,AC_MSG_ERROR([libgnurx is required to build file(1) with MinGW]))
+if test "$enable_pcre2" != "no"; then
+  dnl The -static suffix is generally only used on Windows, where linking this library statically is preferrable.
+  AC_SEARCH_LIBS(pcre2_regcomp, [pcre2-posix-static],,,[-lpcre2-8-static])
+  if test "$ac_cv_search_pcre2_regcomp" = "no"; then
+    unset ac_cv_search_pcre2_regcomp
+    AC_SEARCH_LIBS(pcre2_regcomp, [pcre2-posix])
+  fi
+  dnl In case it's static...
+  if test "$ac_cv_search_pcre2_regcomp" = "no"; then
+    unset ac_cv_search_pcre2_regcomp
+    AC_SEARCH_LIBS(pcre2_regcomp, [pcre2-posix],,,[-lpcre2-8])
+  fi
+fi
+if test "$ac_cv_search_pcre2_regcomp" = "no" && \
+   test "enable_pcre" != "no"; then
+  AC_SEARCH_LIBS(pcreposix_regcomp, [pcreposix-static pcreposix])
+fi
+if ( \
+     test "$enable_pcre2" = "no" || \
+     test "$ac_cv_search_pcre2_regcomp" = "no" \
+   ) && ( \
+     test "$enable_pcre" = "no" || \
+     test "$ac_cv_search_pcreposix_regcomp" = "no" \
+   ); then
+  AC_SEARCH_LIBS(regcomp,[gnurx],,[
+    AC_MSG_ERROR([no link library for regex support found])
+  ])
 fi
 
 dnl See if we are cross-compiling
 AM_CONDITIONAL(IS_CROSS_COMPILE, test "$cross_compiling" = yes)
 
 dnl Final sanity checks
+if test "$enable_pcre2" = "yes"; then
+  if test "$ac_cv_header_pcre2posix_h$ac_cv_search_pcre2_regcomp" != "yesyes"; then
+    AC_MSG_ERROR([pcre2 support requested but not found])
+  fi
+fi
+if test "$enable_pcre" = "yes"; then
+  if test "$ac_cv_header_pcreposix_h$ac_cv_search_pcreposix_regcomp" != "yesyes"; then
+    AC_MSG_ERROR([pcre support requested but not found])
+  fi
+fi
 if test "$enable_zlib" = "yes"; then
   if test "$ac_cv_header_zlib_h$ac_cv_lib_z_gzopen" != "yesyes"; then
     AC_MSG_ERROR([zlib support requested but not found])
