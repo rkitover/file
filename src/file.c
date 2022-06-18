@@ -607,10 +607,12 @@ file_mbswidth(struct magic_set *ms, const char *s)
 	}
 	return width;
 #else
+/*
 	while (*s) {
 		width += (ms->flags & MAGIC_RAW) != 0
 		    || isprint(CAST(unsigned char, *s)) ? 1 : 4;
 	}
+*/
 
 	return strlen(s);
 #endif
